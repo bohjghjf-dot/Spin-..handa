@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>عجلة الصراحة المتصلة</title>
-    <!-- استدعاء مكتبة Firebase للربط اللحظي بين الغرف -->
+    <!-- استدعاء مكتبة Firebase للربط اللحظي بين الجميع -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
@@ -104,7 +104,6 @@
         
         <div class="divider">— أو —</div>
         
-        <!-- كود الغرفة أصبح يقبل أرقام فقط -->
         <input type="number" id="room-code-input" placeholder="اكتب كود الغرفة (أرقام فقط)">
         <button type="button" onclick="joinRoom()">انضمام للغرفة 🚪</button>
     </div>
@@ -146,9 +145,9 @@
                 </div>
             </div>
 
-            <!-- العجلة والأسئلة -->
+            <!-- العجلة والأسئلة (متاحة للكل) -->
             <div class="main-game">
-                <div class="turn-box" id="current-turn-display">🎯 الدور على: في انتظار البداية</div>
+                <div class="turn-box" id="current-turn-display">🎯 الدور على: في انتظار اللعب</div>
                 
                 <div style="position: relative; width: 120px; height: 120px; margin: 4px auto;">
                     <div class="pointer"></div>
@@ -160,7 +159,7 @@
                 <button type="button" onclick="spinWheel()" style="margin-top: 6px; background: linear-gradient(45deg, #ff9800, #ff5722); padding: 9px;">لف العجلة</button>
 
                 <div class="question-box" id="question-display">
-                    اضغط على "لف العجلة" ليظهر السؤال!
+                    اضغط على "لف العجلة" ليظهر السؤال للجميع!
                 </div>
 
                 <button type="button" onclick="leaveRoom()" style="background: #444; padding: 5px; font-size: 11px; margin-top: 2px;">مغادرة الغرفة</button>
@@ -170,7 +169,7 @@
             <div class="side-panel">
                 <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #ffeb3b;">📝 شات الإجابة</div>
                 <div class="chat-box-style" id="answer-messages-box">
-                    <div style="color: #aaa; text-align: center;">هنا تظهر إجابات الأسئلة!</div>
+                    <div style="color: #aaa; text-align: center;">إجابات اللاعبين تظهر هنا!</div>
                 </div>
                 <div class="chat-input-area">
                     <input type="text" id="answer-input" placeholder="اكتب إجابتك..." onkeypress="if(event.key==='Enter') sendAnswerMessage()">
@@ -181,7 +180,6 @@
     </div>
 
     <script>
-        // إعدادات الاتصال السحابي المجاني للغرف
         const firebaseConfig = {
             databaseURL: "https://handa-game-default-rtdb.firebaseio.com/"
         };
@@ -242,11 +240,8 @@
             myName = nameInput;
             isHost = true;
             
-            // توليد كود غرفة مكون من 4 أرقام فقط
             currentRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
-            
             db.ref('rooms/' + currentRoomCode + '/players/' + myName).set({ ready: false, isHost: true });
-            
             showLobby();
         }
 
@@ -261,7 +256,6 @@
             currentRoomCode = roomInput;
             
             db.ref('rooms/' + currentRoomCode + '/players/' + nameInput).set({ ready: false, isHost: false });
-            
             showLobby();
         }
 
@@ -276,7 +270,6 @@
                 document.getElementById('host-start-btn').style.display = 'none';
             }
 
-            // الاستماع للاعبين وحالة الاستعداد لحظياً عبر الإنترنت
             db.ref('rooms/' + currentRoomCode + '/players').on('value', (snapshot) => {
                 const players = snapshot.val();
                 const listDiv = document.getElementById('lobby-players-list');
@@ -296,7 +289,6 @@
                 }
             });
 
-            // مراقبة بدء اللعبة من المضيف
             db.ref('rooms/' + currentRoomCode + '/gameStarted').on('value', (snapshot) => {
                 if(snapshot.val() === true) {
                     startActualGame();
@@ -323,7 +315,12 @@
             document.getElementById('game-screen').style.display = 'block';
             document.getElementById('game-room-code').innerText = currentRoomCode;
 
-            // الاستماع للشات العام
+            // مسح أي رسائل قديمة وتفريغ الصناديق لمنع التكرار
+            document.getElementById('chat-messages-box').innerHTML = "";
+            document.getElementById('answer-messages-box').innerHTML = "";
+
+            // الاستماع للشات العام لحظياً
+            db.ref('rooms/' + currentRoomCode + '/chat').off();
             db.ref('rooms/' + currentRoomCode + '/chat').on('child_added', (snapshot) => {
                 const data = snapshot.val();
                 const chatBox = document.getElementById('chat-messages-box');
@@ -331,7 +328,8 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
             });
 
-            // الاستماع لشات الإجابات
+            // الاستماع لشات الإجابات لحظياً
+            db.ref('rooms/' + currentRoomCode + '/answers').off();
             db.ref('rooms/' + currentRoomCode + '/answers').on('child_added', (snapshot) => {
                 const data = snapshot.val();
                 const ansBox = document.getElementById('answer-messages-box');
@@ -339,7 +337,8 @@
                 ansBox.scrollTop = ansBox.scrollHeight;
             });
 
-            // الاستماع لنتائج العجلة والأسئلة
+            // الاستماع لنتائج العجلة والأسئلة للجميع
+            db.ref('rooms/' + currentRoomCode + '/wheelState').off();
             db.ref('rooms/' + currentRoomCode + '/wheelState').on('value', (snapshot) => {
                 const state = snapshot.val();
                 if(state) {
@@ -351,7 +350,7 @@
         }
 
         function spinWheel() {
-            // المضيف هو من يقوم بلف العجلة وتحديثها للجميع في الغرفة
+            // أي لاعب يقدر يلف العجلة وتتحدث فوراً عند كل أجهزة المتواجدين في الروم
             db.ref('rooms/' + currentRoomCode + '/players').once('value').then((snapshot) => {
                 const playersObj = snapshot.val();
                 const playerNames = playersObj ? Object.keys(playersObj) : [myName];
