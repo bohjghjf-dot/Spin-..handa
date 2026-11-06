@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عجلة الصراحة</title>
+    <title>عجلة الصراحة المتصلة</title>
+    <!-- استدعاء مكتبة Firebase للربط اللحظي بين الغرف -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body {
@@ -101,25 +104,23 @@
         
         <div class="divider">— أو —</div>
         
-        <input type="text" id="room-code-input" placeholder="اكتب كود الغرفة">
+        <!-- كود الغرفة أصبح يقبل أرقام فقط -->
+        <input type="number" id="room-code-input" placeholder="اكتب كود الغرفة (أرقام فقط)">
         <button type="button" onclick="joinRoom()">انضمام للغرفة 🚪</button>
     </div>
 
-    <!-- شاشة الانتظار (تحديد المستعد والتحكم للمنشئ) -->
+    <!-- شاشة الانتظار -->
     <div class="container" id="lobby-screen" style="display: none; max-width: 500px;">
         <h2>عجلة الصراحة</h2>
         <div style="font-size: 14px; margin-bottom: 12px;">كود الغرفة: <span id="lobby-room-code" style="color: #ffeb3b; font-weight: bold;"></span></div>
         
         <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; margin: 12px 0; text-align: right;">
-            <div style="font-weight: bold; margin-bottom: 8px; color: #ff3366; font-size: 14px;">اللاعبون وحالة الاستعداد:</div>
+            <div style="font-weight: bold; margin-bottom: 8px; color: #ff3366; font-size: 14px;">اللاعبون المتواجدون:</div>
             <div class="players-list" id="lobby-players-list" style="max-height: 160px;"></div>
         </div>
 
         <button type="button" onclick="toggleReady()" id="ready-btn" style="background: #ff9800; font-size: 15px;">أنا مستعد ✅</button>
-        
-        <!-- زر بدء اللعبة للمضيف فقط -->
         <button type="button" onclick="hostStartGame()" id="host-start-btn" style="background: #4caf50; font-size: 16px; display: none; margin-top: 10px;">بدء اللعبة 🚀</button>
-        
         <button type="button" onclick="leaveRoom()" style="background: #555; font-size: 12px; margin-top: 8px;">مغادرة الغرفة</button>
     </div>
 
@@ -145,9 +146,9 @@
                 </div>
             </div>
 
-            <!-- المنتصف: العجلة والأسئلة -->
+            <!-- العجلة والأسئلة -->
             <div class="main-game">
-                <div class="turn-box" id="current-turn-display">🎯 الدور على: جاري التحديد...</div>
+                <div class="turn-box" id="current-turn-display">🎯 الدور على: في انتظار البداية</div>
                 
                 <div style="position: relative; width: 120px; height: 120px; margin: 4px auto;">
                     <div class="pointer"></div>
@@ -165,14 +166,14 @@
                 <button type="button" onclick="leaveRoom()" style="background: #444; padding: 5px; font-size: 11px; margin-top: 2px;">مغادرة الغرفة</button>
             </div>
 
-            <!-- شات خاص بالإجابة -->
+            <!-- شات الإجابة -->
             <div class="side-panel">
                 <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #ffeb3b;">📝 شات الإجابة</div>
                 <div class="chat-box-style" id="answer-messages-box">
-                    <div style="color: #aaa; text-align: center;">هنا تظهر إجابات الأسئلة فقط!</div>
+                    <div style="color: #aaa; text-align: center;">هنا تظهر إجابات الأسئلة!</div>
                 </div>
                 <div class="chat-input-area">
-                    <input type="text" id="answer-input" placeholder="اكتب إجابتك هنا..." onkeypress="if(event.key==='Enter') sendAnswerMessage()">
+                    <input type="text" id="answer-input" placeholder="اكتب إجابتك..." onkeypress="if(event.key==='Enter') sendAnswerMessage()">
                     <button type="button" onclick="sendAnswerMessage()" style="background: #ffeb3b; color: #000;">إجابة</button>
                 </div>
             </div>
@@ -180,15 +181,22 @@
     </div>
 
     <script>
+        // إعدادات الاتصال السحابي المجاني للغرف
+        const firebaseConfig = {
+            databaseURL: "https://handa-game-default-rtdb.firebaseio.com/"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
         let myName = "";
         let currentRoomCode = "";
         let isHost = false;
         let isMicOn = true;
         let isAudioOn = true;
         let currentDegree = 0;
-        let roomPlayers = [];
 
-        // أسئلة بدون أي أرقام
         const questionsData = {
             truth: [
                 "ما هو أكبر سر كتمته عن أهلك ولم يعلموا به؟",
@@ -200,8 +208,7 @@
                 "هل في شخص في حياتك حالياً نفسك تعتذر له وبتحرج؟",
                 "إيه أغبى حاجة عملتها وأنت صغير وخايف أهلك يعرفوها؟",
                 "موقف غبي عملته قدام شخص كنت معجب بيه جداً؟",
-                "هل دمعت بسبب فيلم أو قصة عاطفية قبل كده؟",
-                "ما هو رد فعلك لو وضعت في موقف يحتم عليك الاختيار بين أقرب أصدقائك وحبيبك؟"
+                "هل دمعت بسبب فيلم أو قصة عاطفية قبل كده؟"
             ],
             love: [
                 "إيه هو مفهوم الحب الحقيقي بالنسبة لك بصراحة؟",
@@ -213,8 +220,7 @@
                 "لو جالك إنسان مناسب جداً بس أهلك مش موافقين، هتعمل إيه؟",
                 "إيه هي رومانسيّتك المفضلة (هدية مادية، كلام معسول، ولا مواقف)؟",
                 "هل ممكن تغفر الخيانة العاطفية في علاقة حب صادقة؟",
-                "إيه هي أول صفة بتبحث عنها في شريك حياتك المستقبلي؟",
-                "كيف تعبر عن مشاعرك لشخص تحبه بطريقة غير تقليدية ومجنونة؟"
+                "إيه هي أول صفة بتبحث عنها في شريك حياتك المستقبلي؟"
             ],
             breakup: [
                 "إيه هو أصعب شعور عشته لحظة الفراق والانفصال؟",
@@ -226,20 +232,21 @@
                 "لو اتقابلتم صدفة بعد سنين فراق طويلة، هتتصرف إزاي؟",
                 "إيه أكتر أغنية بتفكرك بفترة الفراق والوجع والقهرة؟",
                 "هل البعد بيداوي الجروح ولا بيزود الشوق والحنين أكتر؟",
-                "إيه هو الدرس القاسي اللي اتعلمته من تجربة فراق ألمتك؟",
-                "ما هي الذكرى الأقسى التي تركتها لك تجربة الفراق وكيف تجاوزتها؟"
+                "إيه هو الدرس القاسي اللي اتعلمته من تجربة فراق ألمتك؟"
             ]
         };
-
-        let usedQuestions = { truth: [], love: [], breakup: [] };
 
         function createRoom() {
             const nameInput = document.getElementById('player-name').value.trim();
             if (!nameInput) { alert("اكتب اسمك الأول يا غالي!"); return; }
             myName = nameInput;
             isHost = true;
-            currentRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
-            roomPlayers = [{ name: myName, ready: false, isHost: true }];
+            
+            // توليد كود غرفة مكون من 4 أرقام فقط
+            currentRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            db.ref('rooms/' + currentRoomCode + '/players/' + myName).set({ ready: false, isHost: true });
+            
             showLobby();
         }
 
@@ -247,14 +254,14 @@
             const nameInput = document.getElementById('player-name').value.trim();
             const roomInput = document.getElementById('room-code-input').value.trim();
             if (!nameInput) { alert("اكتب اسمك الأول!"); return; }
-            if (!roomInput) { alert("اكتب كود الغرفة!"); return; }
+            if (!roomInput) { alert("اكتب كود الغرفة المكون من أرقام!"); return; }
+            
             myName = nameInput;
             isHost = false;
             currentRoomCode = roomInput;
-            roomPlayers = [
-                { name: "صديق 1 (مضيف)", ready: true, isHost: true },
-                { name: myName, ready: false, isHost: false }
-            ];
+            
+            db.ref('rooms/' + currentRoomCode + '/players/' + nameInput).set({ ready: false, isHost: false });
+            
             showLobby();
         }
 
@@ -268,84 +275,101 @@
             } else {
                 document.getElementById('host-start-btn').style.display = 'none';
             }
-            updateLobbyPlayersUI();
-        }
 
-        function updateLobbyPlayersUI() {
-            const listDiv = document.getElementById('lobby-players-list');
-            listDiv.innerHTML = "";
-            roomPlayers.forEach(p => {
-                listDiv.innerHTML += `
-                    <div class="player-item">
-                        <span>👤 ${p.name} ${p.isHost ? '(المُنشئ)' : ''}</span>
-                        <span style="color: ${p.ready ? '#4caf50' : '#ff9800'}; font-weight:bold;">
-                            ${p.ready ? 'مستعد ✅' : 'ينتظر ⏳'}
-                        </span>
-                    </div>
-                `;
+            // الاستماع للاعبين وحالة الاستعداد لحظياً عبر الإنترنت
+            db.ref('rooms/' + currentRoomCode + '/players').on('value', (snapshot) => {
+                const players = snapshot.val();
+                const listDiv = document.getElementById('lobby-players-list');
+                listDiv.innerHTML = "";
+                if(players) {
+                    Object.keys(players).forEach(pName => {
+                        let pData = players[pName];
+                        listDiv.innerHTML += `
+                            <div class="player-item">
+                                <span>👤 ${pName} ${pData.isHost ? '(المُنشئ)' : ''}</span>
+                                <span style="color: ${pData.ready ? '#4caf50' : '#ff9800'}; font-weight:bold;">
+                                    ${pData.ready ? 'مستعد ✅' : 'ينتظر ⏳'}
+                                </span>
+                            </div>
+                        `;
+                    });
+                }
+            });
+
+            // مراقبة بدء اللعبة من المضيف
+            db.ref('rooms/' + currentRoomCode + '/gameStarted').on('value', (snapshot) => {
+                if(snapshot.val() === true) {
+                    startActualGame();
+                }
             });
         }
 
         function toggleReady() {
-            let p = roomPlayers.find(item => item.name === myName);
-            if(p) {
-                p.ready = !p.ready;
-                document.getElementById('ready-btn').innerText = p.ready ? "إلغاء الاستعداد ❌" : "أنا مستعد ✅";
-                document.getElementById('ready-btn').style.background = p.ready ? "#4caf50" : "#ff9800";
-            }
-            updateLobbyPlayersUI();
+            const ref = db.ref('rooms/' + currentRoomCode + '/players/' + myName);
+            ref.once('value').then((snap) => {
+                let currentReady = snap.val() ? snap.val().ready : false;
+                ref.update({ ready: !currentReady });
+                document.getElementById('ready-btn').innerText = !currentReady ? "إلغاء الاستعداد ❌" : "أنا مستعد ✅";
+                document.getElementById('ready-btn').style.background = !currentReady ? "#4caf50" : "#ff9800";
+            });
         }
 
         function hostStartGame() {
+            db.ref('rooms/' + currentRoomCode).update({ gameStarted: true });
+        }
+
+        function startActualGame() {
             document.getElementById('lobby-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'block';
             document.getElementById('game-room-code').innerText = currentRoomCode;
-            updateTurnDisplay();
-        }
 
-        function updateTurnDisplay() {
-            const activePlayer = roomPlayers[Math.floor(Math.random() * roomPlayers.length)].name;
-            document.getElementById('current-turn-display').innerText = `🎯 الدور الآن على: ${activePlayer}`;
+            // الاستماع للشات العام
+            db.ref('rooms/' + currentRoomCode + '/chat').on('child_added', (snapshot) => {
+                const data = snapshot.val();
+                const chatBox = document.getElementById('chat-messages-box');
+                chatBox.innerHTML += `<div><b>${data.name}:</b> ${data.text}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            // الاستماع لشات الإجابات
+            db.ref('rooms/' + currentRoomCode + '/answers').on('child_added', (snapshot) => {
+                const data = snapshot.val();
+                const ansBox = document.getElementById('answer-messages-box');
+                ansBox.innerHTML += `<div style="color:#ffeb3b;"><b>[إجابة] ${data.name}:</b> ${data.text}</div>`;
+                ansBox.scrollTop = ansBox.scrollHeight;
+            });
+
+            // الاستماع لنتائج العجلة والأسئلة
+            db.ref('rooms/' + currentRoomCode + '/wheelState').on('value', (snapshot) => {
+                const state = snapshot.val();
+                if(state) {
+                    document.getElementById('wheel-inner-text').innerText = state.categoryName;
+                    document.getElementById('question-display').innerHTML = `<b>[قسم: ${state.categoryName}]</b><br>${state.question}`;
+                    document.getElementById('current-turn-display').innerText = `🎯 الدور على: ${state.turnPlayer}`;
+                }
+            });
         }
 
         function spinWheel() {
-            const wheel = document.getElementById('fortune-wheel');
-            const innerText = document.getElementById('wheel-inner-text');
-            
-            const randomExtraDegrees = Math.floor(Math.random() * 360) + 1440;
-            currentDegree += randomExtraDegrees;
-            wheel.style.transform = `rotate(${currentDegree}deg)`;
+            // المضيف هو من يقوم بلف العجلة وتحديثها للجميع في الغرفة
+            db.ref('rooms/' + currentRoomCode + '/players').once('value').then((snapshot) => {
+                const playersObj = snapshot.val();
+                const playerNames = playersObj ? Object.keys(playersObj) : [myName];
+                const randomPlayer = playerNames[Math.floor(Math.random() * playerNames.length)];
 
-            innerText.innerText = "تلف...";
-
-            setTimeout(() => {
                 const categories = ['truth', 'love', 'breakup'];
                 const selectedCat = categories[Math.floor(Math.random() * categories.length)];
                 
-                let catNameAr = "";
-                if(selectedCat === 'truth') catNameAr = "صراحة 💡";
-                if(selectedCat === 'love') catNameAr = "حب ❤️";
-                if(selectedCat === 'breakup') catNameAr = "فراق 🌧️";
+                let catNameAr = selectedCat === 'truth' ? "صراحة 💡" : (selectedCat === 'love' ? "حب ❤️" : "فراق 🌧️");
+                const qList = questionsData[selectedCat];
+                const randomQ = qList[Math.floor(Math.random() * qList.length)];
 
-                innerText.innerText = catNameAr;
-                getUniqueQuestion(selectedCat, catNameAr);
-                updateTurnDisplay();
-            }, 3000);
-        }
-
-        function getUniqueQuestion(category, catName) {
-            let available = questionsData[category].filter(q => !usedQuestions[category].includes(q));
-            
-            if (available.length === 0) {
-                document.getElementById('question-display').innerText = `انتهت أسئلة قسم (${catName})!`;
-                return;
-            }
-
-            const randomIndex = Math.floor(Math.random() * available.length);
-            const selectedQ = available[randomIndex];
-            
-            usedQuestions[category].push(selectedQ);
-            document.getElementById('question-display').innerHTML = `<b>[قسم: ${catName}]</b><br>${selectedQ}`;
+                db.ref('rooms/' + currentRoomCode + '/wheelState').set({
+                    categoryName: catNameAr,
+                    question: randomQ,
+                    turnPlayer: randomPlayer
+                });
+            });
         }
 
         function toggleMic() {
@@ -366,31 +390,23 @@
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if(!text) return;
-
-            const chatBox = document.getElementById('chat-messages-box');
-            chatBox.innerHTML += `<div><b>${myName}:</b> ${text}</div>`;
+            db.ref('rooms/' + currentRoomCode + '/chat').push({ name: myName, text: text });
             input.value = '';
-            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         function sendAnswerMessage() {
             const input = document.getElementById('answer-input');
             const text = input.value.trim();
             if(!text) return;
-
-            const answerBox = document.getElementById('answer-messages-box');
-            answerBox.innerHTML += `<div style="color:#ffeb3b;"><b>[إجابة] ${myName}:</b> ${text}</div>`;
+            db.ref('rooms/' + currentRoomCode + '/answers').push({ name: myName, text: text });
             input.value = '';
-            answerBox.scrollTop = answerBox.scrollHeight;
         }
 
         function leaveRoom() {
-            document.getElementById('game-screen').style.display = 'none';
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'block';
-            usedQuestions = { truth: [], love: [], breakup: [] };
-            roomPlayers = [];
-            isHost = false;
+            if(currentRoomCode && myName) {
+                db.ref('rooms/' + currentRoomCode + '/players/' + myName).remove();
+            }
+            location.reload();
         }
     </script>
 </body>
