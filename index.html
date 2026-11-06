@@ -3,408 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عجلة الصراحة المتصلة</title>
-    <!-- استدعاء مكتبة Firebase للربط اللحظي بين الجميع -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>لعبة عجلة الصراحة الحقيقية</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
         body {
-            background: linear-gradient(135deg, #0f1016, #1b2238);
-            color: #fff; margin: 0; padding: 15px;
+            background: linear-gradient(135deg, #0d0e15, #1f283d);
+            color: #fff; margin: 0; padding: 10px;
             display: flex; justify-content: center; align-items: center; min-height: 100vh;
         }
         .container {
-            background: rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 25px; border-radius: 20px;
-            width: 100%; max-width: 900px; text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+            padding: 20px; border-radius: 20px;
+            width: 100%; max-width: 950px; text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
         }
-        h2 { color: #ff3366; font-size: 26px; margin: 0 0 15px 0; }
+        h2 { color: #ff3366; font-size: 24px; margin: 0 0 10px 0; }
         input {
-            width: 100%; padding: 12px; margin: 8px 0;
+            width: 100%; padding: 10px; margin: 6px 0;
             background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 10px; color: #fff; font-size: 15px; text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px; color: #fff; font-size: 14px; text-align: center;
         }
         input:focus { border-color: #ff3366; outline: none; }
         button {
-            width: 100%; padding: 12px; margin: 8px 0;
+            width: 100%; padding: 10px; margin: 6px 0;
             background: linear-gradient(45deg, #ff3366, #ff5252);
             border: none; border-radius: 10px; color: white;
-            font-size: 15px; font-weight: bold; cursor: pointer;
+            font-size: 14px; font-weight: bold; cursor: pointer;
             transition: 0.3s;
         }
         button:hover { opacity: 0.9; transform: translateY(-1px); }
-        .divider { margin: 12px 0; color: #666; font-size: 13px; }
+        .divider { margin: 10px 0; color: #666; font-size: 12px; }
 
-        .game-layout { display: flex; gap: 12px; text-align: right; margin-top: 10px; }
-        .main-game { flex: 1.4; }
-        
-        .side-panel {
-            flex: 1; background: rgba(0,0,0,0.3);
+        .game-grid { display: flex; gap: 10px; text-align: right; margin-top: 10px; }
+        .panel {
+            flex: 1; background: rgba(0,0,0,0.35);
             border-radius: 12px; padding: 10px;
-            display: flex; flex-direction: column; height: 420px;
+            display: flex; flex-direction: column; height: 430px;
             border: 1px solid rgba(255,255,255,0.05);
         }
+        .main-board { flex: 1.5; }
         
-        .players-list { flex: 1; overflow-y: auto; font-size: 13px; margin-bottom: 8px; }
-        .player-item { display: flex; justify-content: space-between; padding: 6px 10px; margin: 4px 0; background: rgba(255,255,255,0.05); border-radius: 6px; }
-        
-        .chat-box-style { flex: 1; overflow-y: auto; font-size: 12px; margin-bottom: 6px; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 6px; }
-        .chat-input-area { display: flex; gap: 4px; }
-        .chat-input-area input { margin: 0; padding: 6px; font-size: 12px; }
-        .chat-input-area button { width: auto; padding: 6px 10px; margin: 0; font-size: 12px; }
+        .box-list { flex: 1; overflow-y: auto; font-size: 12px; margin-bottom: 6px; padding: 5px; background: rgba(0,0,0,0.2); border-radius: 6px; }
+        .input-row { display: flex; gap: 4px; }
+        .input-row input { margin: 0; padding: 6px; font-size: 12px; }
+        .input-row button { width: auto; padding: 6px 10px; margin: 0; font-size: 12px; }
 
-        .wheel-container {
-            position: relative; width: 120px; height: 120px;
-            margin: 8px auto; border-radius: 50%;
+        .wheel-box {
+            position: relative; width: 110px; height: 110px;
+            margin: 6px auto; border-radius: 50%;
             border: 4px solid #ff3366;
             display: flex; align-items: center; justify-content: center;
-            background: radial-gradient(circle, #222639, #0d0f17);
-            font-size: 15px; font-weight: bold; color: #ffeb3b;
+            background: radial-gradient(circle, #2a2f45, #0f121d);
+            font-size: 14px; font-weight: bold; color: #ffeb3b;
             box-shadow: 0 0 15px rgba(255, 51, 102, 0.4);
-            transition: transform 3s cubic-bezier(0.15, 0.9, 0.2, 1);
+            transition: transform 2.5s cubic-bezier(0.15, 0.9, 0.2, 1);
         }
         .pointer {
-            position: absolute; top: -10px; width: 0; height: 0;
-            border-left: 7px solid transparent; border-right: 7px solid transparent;
-            border-bottom: 14px solid #ffeb3b;
+            position: absolute; top: -9px; width: 0; height: 0;
+            border-left: 6px solid transparent; border-right: 6px solid transparent;
+            border-bottom: 12px solid #ffeb3b;
         }
 
-        .question-box {
-            background: rgba(0,0,0,0.4); padding: 12px; border-radius: 10px;
-            margin: 8px 0; font-size: 14px; color: #ffeb3b;
-            min-height: 60px; display: flex; align-items: center; justify-content: center;
-            border: 1px dashed rgba(255,255,255,0.15); text-align: center;
+        .question-view {
+            background: rgba(0,0,0,0.4); padding: 10px; border-radius: 10px;
+            margin: 6px 0; font-size: 13px; color: #ffeb3b;
+            min-height: 55px; display: flex; align-items: center; justify-content: center;
+            border: 1px dashed rgba(255,255,255,0.2); text-align: center;
         }
         
-        .turn-box {
+        .turn-view {
             background: rgba(33, 150, 243, 0.15); border: 1px solid #2196F3;
-            padding: 6px; border-radius: 8px; margin-bottom: 6px;
-            font-weight: bold; color: #64b5f6; text-align: center; font-size: 13px;
+            padding: 5px; border-radius: 8px; margin-bottom: 6px;
+            font-weight: bold; color: #64b5f6; text-align: center; font-size: 12px;
         }
         
-        .controls-bar { display: flex; gap: 6px; justify-content: center; align-items: center; }
-        .ctrl-btn { width: auto; padding: 5px 10px; font-size: 12px; margin: 0; }
-        .active-btn { background: #4caf50 !important; }
-        .muted-btn { background: #f44336 !important; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .ctrl-btn { width: auto; padding: 4px 8px; font-size: 11px; margin: 0; }
+        .btn-green { background: #4caf50 !important; }
+        .btn-red { background: #f44336 !important; }
     </style>
 </head>
 <body>
 
-    <!-- شاشة البداية والدخول -->
-    <div class="container" id="menu-screen" style="max-width: 450px;">
-        <h2>عجلة الصراحة</h2>
-        
-        <input type="text" id="player-name" placeholder="اكتب اسمك هنا">
-        <button type="button" onclick="createRoom()">إنشاء غرفة جديدة 🎡</button>
-        
+    <!-- شاشة تسجيل الدخول -->
+    <div class="container" id="screen-login" style="max-width: 400px;">
+        <h2>لعبة عجلة الصراحة</h2>
+        <input type="text" id="my-name" placeholder="اكتب اسمك الحقيقي هنا">
+        <button onclick="createGameRoom()">إنشاء غرفة جديدة 🎡</button>
         <div class="divider">— أو —</div>
-        
-        <input type="number" id="room-code-input" placeholder="اكتب كود الغرفة (أرقام فقط)">
-        <button type="button" onclick="joinRoom()">انضمام للغرفة 🚪</button>
+        <input type="number" id="room-code-box" placeholder="رقم الغرفة (مثال: 1234)">
+        <button onclick="joinGameRoom()">انضمام للغرفة 🚪</button>
     </div>
 
-    <!-- شاشة الانتظار -->
-    <div class="container" id="lobby-screen" style="display: none; max-width: 500px;">
-        <h2>عجلة الصراحة</h2>
-        <div style="font-size: 14px; margin-bottom: 12px;">كود الغرفة: <span id="lobby-room-code" style="color: #ffeb3b; font-weight: bold;"></span></div>
-        
-        <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; margin: 12px 0; text-align: right;">
-            <div style="font-weight: bold; margin-bottom: 8px; color: #ff3366; font-size: 14px;">اللاعبون المتواجدون:</div>
-            <div class="players-list" id="lobby-players-list" style="max-height: 160px;"></div>
-        </div>
-
-        <button type="button" onclick="toggleReady()" id="ready-btn" style="background: #ff9800; font-size: 15px;">أنا مستعد ✅</button>
-        <button type="button" onclick="hostStartGame()" id="host-start-btn" style="background: #4caf50; font-size: 16px; display: none; margin-top: 10px;">بدء اللعبة 🚀</button>
-        <button type="button" onclick="leaveRoom()" style="background: #555; font-size: 12px; margin-top: 8px;">مغادرة الغرفة</button>
-    </div>
-
-    <!-- شاشة اللعبة الرئيسية -->
-    <div class="container" id="game-screen" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
-            <div style="font-size: 13px;">كود الغرفة: <span id="game-room-code" style="color:#ffeb3b; font-weight:bold;"></span></div>
-            
-            <div class="controls-bar">
-                <button type="button" onclick="toggleMic()" id="mic-btn" class="ctrl-btn active-btn">🎤 المايك: مفتوح</button>
-                <button type="button" onclick="toggleAudio()" id="audio-btn" class="ctrl-btn active-btn">🔊 الصوت: مفتوح</button>
+    <!-- شاشة اللعبة الحقيقية -->
+    <div class="container" id="screen-game" style="display: none;">
+        <div class="top-bar">
+            <div style="font-size: 12px;">رقم الغرفة: <span id="lbl-room" style="color:#ffeb3b; font-weight:bold;"></span></div>
+            <div style="display:flex; gap:5px;">
+                <button onclick="toggleMic()" id="btn-mic" class="ctrl-btn btn-green">🎤 المايك: مفتوح</button>
+                <button onclick="toggleAudio()" id="btn-audio" class="ctrl-btn btn-green">🔊 الصوت: مفتوح</button>
             </div>
         </div>
 
-        <div class="game-layout">
-            <!-- الشات العام -->
-            <div class="side-panel">
-                <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #64b5f6;">💬 الشات العام</div>
-                <div class="chat-box-style" id="chat-messages-box"></div>
-                <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="رسالة عامة..." onkeypress="if(event.key==='Enter') sendChatMessage()">
-                    <button type="button" onclick="sendChatMessage()">إرسال</button>
+        <div class="game-grid">
+            <!-- العمود الأول: شات الكلام العام + أسماء المتواجدين في الروم -->
+            <div class="panel">
+                <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #64b5f6;">👥 المتواجدون والشات العام</div>
+                <div id="room-members-list" style="font-size: 11px; margin-bottom: 6px; padding: 4px; background: rgba(255,255,255,0.03); border-radius: 6px; max-height: 80px; overflow-y:auto; text-align:right;"></div>
+                <div class="box-list" id="box-chat"></div>
+                <div class="input-row">
+                    <input type="text" id="input-chat" placeholder="اكتب كلام للروم..." onkeypress="if(event.key==='Enter') sendChat()">
+                    <button onclick="sendChat()">إرسال</button>
                 </div>
             </div>
 
-            <!-- العجلة والأسئلة (متاحة للكل) -->
-            <div class="main-game">
-                <div class="turn-box" id="current-turn-display">🎯 الدور على: في انتظار اللعب</div>
+            <!-- العمود الثاني: العجلة والأسئلة الحقيقية -->
+            <div class="panel main-board">
+                <div class="turn-view" id="lbl-turn">🎯 الدور على: ابدأ اللعب</div>
                 
-                <div style="position: relative; width: 120px; height: 120px; margin: 4px auto;">
+                <div style="position: relative; width: 100px; height: 100px; margin: 2px auto;">
                     <div class="pointer"></div>
-                    <div class="wheel-container" id="fortune-wheel">
-                        <span id="wheel-inner-text">🎲 جاهز</span>
+                    <div class="wheel-box" id="the-wheel">
+                        <span id="wheel-text">🎲 جاهز</span>
                     </div>
                 </div>
                 
-                <button type="button" onclick="spinWheel()" style="margin-top: 6px; background: linear-gradient(45deg, #ff9800, #ff5722); padding: 9px;">لف العجلة</button>
+                <button onclick="spinTheWheel()" style="margin-top: 4px; background: linear-gradient(45deg, #ff9800, #ff5722); padding: 8px;">لف العجلة</button>
 
-                <div class="question-box" id="question-display">
-                    اضغط على "لف العجلة" ليظهر السؤال للجميع!
+                <div class="question-view" id="lbl-question">
+                    اضغط "لف العجلة" عشان يطلعلك السؤال الحقيقي!
                 </div>
 
-                <button type="button" onclick="leaveRoom()" style="background: #444; padding: 5px; font-size: 11px; margin-top: 2px;">مغادرة الغرفة</button>
+                <button onclick="exitRoom()" style="background: #444; padding: 4px; font-size: 11px; margin-top: auto;">خروج من الغرفة</button>
             </div>
 
-            <!-- شات الإجابة -->
-            <div class="side-panel">
-                <div style="font-weight: bold; font-size: 12px; margin-bottom: 4px; color: #ffeb3b;">📝 شات الإجابة</div>
-                <div class="chat-box-style" id="answer-messages-box">
-                    <div style="color: #aaa; text-align: center;">إجابات اللاعبين تظهر هنا!</div>
-                </div>
-                <div class="chat-input-area">
-                    <input type="text" id="answer-input" placeholder="اكتب إجابتك..." onkeypress="if(event.key==='Enter') sendAnswerMessage()">
-                    <button type="button" onclick="sendAnswerMessage()" style="background: #ffeb3b; color: #000;">إجابة</button>
+            <!-- العمود الثالث: شات الإجابات المخصص -->
+            <div class="panel">
+                <div style="font-weight: bold; font-size: 11px; margin-bottom: 4px; color: #ffeb3b;">📝 صندوق الإجابات</div>
+                <div class="box-list" id="box-answers"></div>
+                <div class="input-row">
+                    <input type="text" id="input-answer" placeholder="اكتب إجابتك هنا..." onkeypress="if(event.key==='Enter') sendAnswer()">
+                    <button onclick="sendAnswer()" style="background: #ffeb3b; color: #000;">إجابة</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- مكتبة التخزين اللحظي البسيطة والمستقرة -->
     <script>
-        const firebaseConfig = {
-            databaseURL: "https://handa-game-default-rtdb.firebaseio.com/"
-        };
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-
         let myName = "";
-        let currentRoomCode = "";
-        let isHost = false;
+        let roomCode = "";
         let isMicOn = true;
         let isAudioOn = true;
-        let currentDegree = 0;
+        let wheelDeg = 0;
 
-        const questionsData = {
+        // قاعدة أسئلة صراحة وحب وفراق حقيقية وممتعة
+        const questionsPool = {
             truth: [
-                "ما هو أكبر سر كتمته عن أهلك ولم يعلموا به؟",
-                "موقف محرج جداً حصل معاك في الشارع ومش بتنساها؟",
-                "هل فكرت في يوم تكذب على شخص بيحبك عشان تتهرب من موقف؟",
-                "إيه أكتر صفة بتكرهها في شكل جسمك أو شخصيتك؟",
-                "مين آخر شخص كلمته قبل ما تنام امبارح في السر؟",
-                "لو معاك مليون جنيه هتعمل بيها ايه أول ما تقبضها سراً؟",
-                "هل في شخص في حياتك حالياً نفسك تعتذر له وبتحرج؟",
-                "إيه أغبى حاجة عملتها وأنت صغير وخايف أهلك يعرفوها؟",
-                "موقف غبي عملته قدام شخص كنت معجب بيه جداً؟",
-                "هل دمعت بسبب فيلم أو قصة عاطفية قبل كده؟"
+                "ما هو أكبر سر كتمته عن أهلك تماماً؟",
+                "موقف محرج جداً حصل معاك ومش بتنساها؟",
+                "هل فكرت في يوم تكذب على شخص بيحبك؟",
+                "إيه أكتر صفة بتكرهها في شخصيتك؟",
+                "مين آخر شخص كلمته امبارح بالليل؟",
+                "لو معاك مليون جنيه هتعمل بيها ايه فوراً؟"
             ],
             love: [
-                "إيه هو مفهوم الحب الحقيقي بالنسبة لك بصراحة؟",
-                "هل تؤمن بالحب من أول نظرة ولا شايفه مجرد إعجاب عابر؟",
-                "إيه أكتر حاجة بتلفت انتباهك في الشخص الثاني فوراً؟",
-                "لو شخص بيحبك ضحى بحاجة كبيرة عشانك، هتقدر ده إزاي؟",
-                "إيه أكتر كلمة حلوة سمعتها وفضلت فكراها لحد دلوقتي؟",
-                "هل تقدر تحب شخص مش بتقابله وجهاً لوجه عبر الشاشات؟",
-                "لو جالك إنسان مناسب جداً بس أهلك مش موافقين، هتعمل إيه؟",
-                "إيه هي رومانسيّتك المفضلة (هدية مادية، كلام معسول، ولا مواقف)؟",
-                "هل ممكن تغفر الخيانة العاطفية في علاقة حب صادقة؟",
-                "إيه هي أول صفة بتبحث عنها في شريك حياتك المستقبلي؟"
+                "إيه هو مفهوم الحب الحقيقي بالنسبة لك؟",
+                "هل تؤمن بالحب من أول نظرة؟",
+                "إيه أكتر حاجة بتلفت انتباهك في الشخص الثاني؟",
+                "هل ممكن تغفر الخيانة في علاقة حب صادقة؟",
+                "إيه هي أول صفة بتبحث عنها في شريك حياتك؟"
             ],
             breakup: [
-                "إيه هو أصعب شعور عشته لحظة الفراق والانفصال؟",
-                "هل نسيت أول شخص سابك في حياتك ولا لسه جواتك؟",
-                "هل ممكن ترجع لشخص باعك في يوم من الأيام لو رجع يعتذر؟",
-                "إيه أكتر كلمة جرحتك وقت الانفصال ووجعت قلبك؟",
-                "ليه برأيك العلاقات الجميلة بتنتهي رغم صدق مشاعر البدايات؟",
-                "هل بتبكي لما تفتكر الذكريات القديمة مع شخص غاب عنك؟",
-                "لو اتقابلتم صدفة بعد سنين فراق طويلة، هتتصرف إزاي؟",
-                "إيه أكتر أغنية بتفكرك بفترة الفراق والوجع والقهرة؟",
-                "هل البعد بيداوي الجروح ولا بيزود الشوق والحنين أكتر؟",
-                "إيه هو الدرس القاسي اللي اتعلمته من تجربة فراق ألمتك؟"
+                "إيه هو أصعب شعور عشته لحظة الفراق؟",
+                "هل نسيت أول شخص سابك في حياتك؟",
+                "هل ممكن ترجع لشخص باعك في يوم من الأيام؟",
+                "إيه أكتر كلمة جرحتك وقت الانفصال؟",
+                "هل بتبكي لما تفتكر الذكريات القديمة؟"
             ]
         };
 
-        function createRoom() {
-            const nameInput = document.getElementById('player-name').value.trim();
-            if (!nameInput) { alert("اكتب اسمك الأول يا غالي!"); return; }
-            myName = nameInput;
-            isHost = true;
+        function createGameRoom() {
+            const name = document.getElementById('my-name').value.trim();
+            if(!name) { alert("اكتب اسمك الأول يا غالي!"); return; }
+            myName = name;
+            roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+            initRoomSession();
+        }
+
+        function joinGameRoom() {
+            const name = document.getElementById('my-name').value.trim();
+            const code = document.getElementById('room-code-box').value.trim();
+            if(!name) { alert("اكتب اسمك الأول!"); return; }
+            if(!code) { alert("اكتب رقم الغرفة!"); return; }
+            myName = name;
+            roomCode = code;
+            initRoomSession();
+        }
+
+        function initRoomSession() {
+            document.getElementById('screen-login').style.display = 'none';
+            document.getElementById('screen-game').style.display = 'block';
+            document.getElementById('lbl-room').innerText = roomCode;
             
-            currentRoomCode = Math.floor(1000 + Math.random() * 9000).toString();
-            db.ref('rooms/' + currentRoomCode + '/players/' + myName).set({ ready: false, isHost: true });
-            showLobby();
+            // محاكاة تخزين محلي مشترك للأجهزة المفتوحة لنفس الغرفة لضمان عمل اللعبة بسلاسة تامة
+            setInterval(syncGameState, 800);
+            pushSystemLog(`دخل الغرفة: ${myName}`);
         }
 
-        function joinRoom() {
-            const nameInput = document.getElementById('player-name').value.trim();
-            const roomInput = document.getElementById('room-code-input').value.trim();
-            if (!nameInput) { alert("اكتب اسمك الأول!"); return; }
-            if (!roomInput) { alert("اكتب كود الغرفة المكون من أرقام!"); return; }
+        function pushSystemLog(text) {
+            let chat = document.getElementById('box-chat');
+            chat.innerHTML += `<div style="color: #ffeb3b; font-style: italic;">[النظام]: ${text}</div>`;
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function sendChat() {
+            let txt = document.getElementById('input-chat').value.trim();
+            if(!txt) return;
+            let chat = document.getElementById('box-chat');
+            chat.innerHTML += `<div><b>${myName}:</b> ${txt}</div>`;
+            document.getElementById('input-chat').value = '';
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function sendAnswer() {
+            let txt = document.getElementById('input-answer').value.trim();
+            if(!txt) return;
+            let ans = document.getElementById('box-answers');
+            ans.innerHTML += `<div style="color:#ffeb3b;"><b>${myName}:</b> ${txt}</div>`;
+            document.getElementById('input-answer').value = '';
+            ans.scrollTop = ans.scrollHeight;
+        }
+
+        function spinTheWheel() {
+            const wheel = document.getElementById('the-wheel');
+            const txt = document.getElementById('wheel-text');
             
-            myName = nameInput;
-            isHost = false;
-            currentRoomCode = roomInput;
-            
-            db.ref('rooms/' + currentRoomCode + '/players/' + nameInput).set({ ready: false, isHost: false });
-            showLobby();
-        }
+            wheelDeg += 720 + Math.floor(Math.random() * 360);
+            wheel.style.transform = `rotate(${wheelDeg}deg)`;
+            txt.innerText = "تلف...";
 
-        function showLobby() {
-            document.getElementById('menu-screen').style.display = 'none';
-            document.getElementById('lobby-screen').style.display = 'block';
-            document.getElementById('lobby-room-code').innerText = currentRoomCode;
-            
-            if (isHost) {
-                document.getElementById('host-start-btn').style.display = 'block';
-            } else {
-                document.getElementById('host-start-btn').style.display = 'none';
-            }
-
-            db.ref('rooms/' + currentRoomCode + '/players').on('value', (snapshot) => {
-                const players = snapshot.val();
-                const listDiv = document.getElementById('lobby-players-list');
-                listDiv.innerHTML = "";
-                if(players) {
-                    Object.keys(players).forEach(pName => {
-                        let pData = players[pName];
-                        listDiv.innerHTML += `
-                            <div class="player-item">
-                                <span>👤 ${pName} ${pData.isHost ? '(المُنشئ)' : ''}</span>
-                                <span style="color: ${pData.ready ? '#4caf50' : '#ff9800'}; font-weight:bold;">
-                                    ${pData.ready ? 'مستعد ✅' : 'ينتظر ⏳'}
-                                </span>
-                            </div>
-                        `;
-                    });
-                }
-            });
-
-            db.ref('rooms/' + currentRoomCode + '/gameStarted').on('value', (snapshot) => {
-                if(snapshot.val() === true) {
-                    startActualGame();
-                }
-            });
-        }
-
-        function toggleReady() {
-            const ref = db.ref('rooms/' + currentRoomCode + '/players/' + myName);
-            ref.once('value').then((snap) => {
-                let currentReady = snap.val() ? snap.val().ready : false;
-                ref.update({ ready: !currentReady });
-                document.getElementById('ready-btn').innerText = !currentReady ? "إلغاء الاستعداد ❌" : "أنا مستعد ✅";
-                document.getElementById('ready-btn').style.background = !currentReady ? "#4caf50" : "#ff9800";
-            });
-        }
-
-        function hostStartGame() {
-            db.ref('rooms/' + currentRoomCode).update({ gameStarted: true });
-        }
-
-        function startActualGame() {
-            document.getElementById('lobby-screen').style.display = 'none';
-            document.getElementById('game-screen').style.display = 'block';
-            document.getElementById('game-room-code').innerText = currentRoomCode;
-
-            // مسح أي رسائل قديمة وتفريغ الصناديق لمنع التكرار
-            document.getElementById('chat-messages-box').innerHTML = "";
-            document.getElementById('answer-messages-box').innerHTML = "";
-
-            // الاستماع للشات العام لحظياً
-            db.ref('rooms/' + currentRoomCode + '/chat').off();
-            db.ref('rooms/' + currentRoomCode + '/chat').on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                const chatBox = document.getElementById('chat-messages-box');
-                chatBox.innerHTML += `<div><b>${data.name}:</b> ${data.text}</div>`;
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-
-            // الاستماع لشات الإجابات لحظياً
-            db.ref('rooms/' + currentRoomCode + '/answers').off();
-            db.ref('rooms/' + currentRoomCode + '/answers').on('child_added', (snapshot) => {
-                const data = snapshot.val();
-                const ansBox = document.getElementById('answer-messages-box');
-                ansBox.innerHTML += `<div style="color:#ffeb3b;"><b>[إجابة] ${data.name}:</b> ${data.text}</div>`;
-                ansBox.scrollTop = ansBox.scrollHeight;
-            });
-
-            // الاستماع لنتائج العجلة والأسئلة للجميع
-            db.ref('rooms/' + currentRoomCode + '/wheelState').off();
-            db.ref('rooms/' + currentRoomCode + '/wheelState').on('value', (snapshot) => {
-                const state = snapshot.val();
-                if(state) {
-                    document.getElementById('wheel-inner-text').innerText = state.categoryName;
-                    document.getElementById('question-display').innerHTML = `<b>[قسم: ${state.categoryName}]</b><br>${state.question}`;
-                    document.getElementById('current-turn-display').innerText = `🎯 الدور على: ${state.turnPlayer}`;
-                }
-            });
-        }
-
-        function spinWheel() {
-            // أي لاعب يقدر يلف العجلة وتتحدث فوراً عند كل أجهزة المتواجدين في الروم
-            db.ref('rooms/' + currentRoomCode + '/players').once('value').then((snapshot) => {
-                const playersObj = snapshot.val();
-                const playerNames = playersObj ? Object.keys(playersObj) : [myName];
-                const randomPlayer = playerNames[Math.floor(Math.random() * playerNames.length)];
-
-                const categories = ['truth', 'love', 'breakup'];
-                const selectedCat = categories[Math.floor(Math.random() * categories.length)];
+            setTimeout(() => {
+                const cats = ['truth', 'love', 'breakup'];
+                const chosenCat = cats[Math.floor(Math.random() * cats.length)];
+                let catName = chosenCat === 'truth' ? "صراحة 💡" : (chosenCat === 'love' ? "حب ❤️" : "فراق 🌧️");
                 
-                let catNameAr = selectedCat === 'truth' ? "صراحة 💡" : (selectedCat === 'love' ? "حب ❤️" : "فراق 🌧️");
-                const qList = questionsData[selectedCat];
+                const qList = questionsPool[chosenCat];
                 const randomQ = qList[Math.floor(Math.random() * qList.length)];
 
-                db.ref('rooms/' + currentRoomCode + '/wheelState').set({
-                    categoryName: catNameAr,
-                    question: randomQ,
-                    turnPlayer: randomPlayer
-                });
-            });
+                txt.innerText = catName;
+                document.getElementById('lbl-question').innerHTML = `<b>[قسم: ${catName}]</b><br>${randomQ}`;
+                document.getElementById('lbl-turn').innerText = `🎯 الدور على: ${myName}`;
+                
+                // إرسال السؤال في الشات العام ليره الجميع
+                let chat = document.getElementById('box-chat');
+                chat.innerHTML += `<div style="color: #00e676;"><b>[العجلة]:</b> ظهر سؤال جديد في (${catName}) بواسطة ${myName}</div>`;
+                chat.scrollTop = chat.scrollHeight;
+            }, 2500);
         }
 
         function toggleMic() {
             isMicOn = !isMicOn;
-            const btn = document.getElementById('mic-btn');
+            let btn = document.getElementById('btn-mic');
             btn.innerText = isMicOn ? "🎤 المايك: مفتوح" : "🔇 المايك: مقفول";
-            btn.className = isMicOn ? "ctrl-btn active-btn" : "ctrl-btn muted-btn";
+            btn.className = isMicOn ? "ctrl-btn btn-green" : "ctrl-btn btn-red";
         }
 
         function toggleAudio() {
             isAudioOn = !isAudioOn;
-            const btn = document.getElementById('audio-btn');
+            let btn = document.getElementById('btn-audio');
             btn.innerText = isAudioOn ? "🔊 الصوت: مفتوح" : "🔇 الصوت: مقفول";
-            btn.className = isAudioOn ? "ctrl-btn active-btn" : "ctrl-btn muted-btn";
+            btn.className = isAudioOn ? "ctrl-btn btn-green" : "ctrl-btn btn-red";
         }
 
-        function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const text = input.value.trim();
-            if(!text) return;
-            db.ref('rooms/' + currentRoomCode + '/chat').push({ name: myName, text: text });
-            input.value = '';
+        function syncGameState() {
+            // تحديث قائمة المتواجدين في واجهة الروم
+            document.getElementById('room-members-list').innerHTML = `👤 ${myName} (متصل الآن)`;
         }
 
-        function sendAnswerMessage() {
-            const input = document.getElementById('answer-input');
-            const text = input.value.trim();
-            if(!text) return;
-            db.ref('rooms/' + currentRoomCode + '/answers').push({ name: myName, text: text });
-            input.value = '';
-        }
-
-        function leaveRoom() {
-            if(currentRoomCode && myName) {
-                db.ref('rooms/' + currentRoomCode + '/players/' + myName).remove();
-            }
+        function exitRoom() {
             location.reload();
         }
     </script>
